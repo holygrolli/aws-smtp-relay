@@ -41,6 +41,7 @@ func server() (srv *smtpd.Server, err error) {
 	if *user != "" && len(bcryptHash) > 0 && len(password) == 0 {
 		authMechs["CRAM-MD5"] = false
 	}
+	authMechs["LOGIN"] = true
 	srv = &smtpd.Server{
 		Addr:         *addr,
 		Handler:      relayClient.Send,
