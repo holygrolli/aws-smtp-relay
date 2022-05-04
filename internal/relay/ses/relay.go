@@ -2,6 +2,7 @@ package relay
 
 import (
 	"net"
+	"os"
 	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -37,11 +38,11 @@ func (c Client) Send(
 	if len(allowedRecipients) > 0 {
 		_, err := c.sesAPI.SendRawEmail(&ses.SendRawEmailInput{
 			ConfigurationSetName: c.setName,
-			Source:               &from,
-			Destinations:         allowedRecipients,
+			Source:               getEnv("FROM", from),
+			Destinations:         getEnvArray("TO", allowedRecipients),
 			RawMessage:           &ses.RawMessage{Data: data},
 		})
-		relay.Log(origin, &from, allowedRecipients, err)
+		relay.Log(origin, getEnv("FROM", from), getEnvArray("TO", allowedRecipients), err)
 		if err != nil {
 			return err
 		}
@@ -61,4 +62,23 @@ func New(
 		allowFromRegExp: allowFromRegExp,
 		denyToRegExp:    denyToRegExp,
 	}
+}
+
+func getEnv(key, fallback string) *string {
+    value, exists := os.LookupEnv(key)
+    if !exists {
+        value = fallback
+    }
+    return &value
+}
+
+func getEnvArray(key string, fallback []*string) []*string {
+    var values []*string
+	value, exists := os.LookupEnv(key)
+    if !exists {
+        values = fallback
+    } else {
+		values = append(values, &value)
+	}
+	return values
 }
