@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"regexp"
@@ -36,13 +37,19 @@ func (c Client) Send(
 		relay.Log(origin, &from, deniedRecipients, err)
 	}
 	if len(allowedRecipients) > 0 {
+		reFrom := regexp.MustCompile("(?m)[\r\n]+^From:.*$")
+		reTo := regexp.MustCompile("(?m)[\r\n]+^To:.*$")
+		replaceFrom := fmt.Sprintf("%s%v%s","\r\nFrom: ", *getEnv("FROM", from), "\r\n")
+		replaceTo := fmt.Sprintf("%s%v", "\r\nTo: ", *getEnv("TO", fmt.Sprintf("%v",allowedRecipients[0])))
+		processedData := []byte(reTo.ReplaceAllString(reFrom.ReplaceAllString(string(data[:]), replaceFrom), replaceTo))
 		_, err := c.sesAPI.SendRawEmail(&ses.SendRawEmailInput{
 			ConfigurationSetName: c.setName,
-			Source:               getEnv("FROM", from),
-			Destinations:         getEnvArray("TO", allowedRecipients),
-			RawMessage:           &ses.RawMessage{Data: data},
+			//Source:               getEnv("FROM", from),
+			//Destinations:         getEnvArray("TO", allowedRecipients),
+			RawMessage:           &ses.RawMessage{Data: processedData},
 		})
 		relay.Log(origin, getEnv("FROM", from), getEnvArray("TO", allowedRecipients), err)
+		//fmt.Println(string(processedData[:]))
 		if err != nil {
 			return err
 		}
